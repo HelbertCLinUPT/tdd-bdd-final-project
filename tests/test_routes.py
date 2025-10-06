@@ -283,6 +283,42 @@ class TestProductRoutes(TestCase):
         for product in data:
             self.assertEqual(product["available"], True)
 
+    def test_update_product_not_found(self):
+        """It should return 404 when updating missing product"""
+        missing = ProductFactory().serialize()
+        missing["id"] = 0
+        resp = self.client.put(f"{BASE_URL}/0", json=missing)
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_method_not_allowed_on_product_detail(self):
+        """It should return 405 for unsupported method on detail"""
+        prod = self._create_products(1)[0]
+        resp = self.client.post(f"{BASE_URL}/{prod.id}", json={})
+        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_delete_product_not_found(self):
+        """It should return 204 when deleting missing product"""
+        resp = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_query_by_price(self):
+        """It should Query Products by price (string and decimal)"""
+        # create products with known prices
+        p1 = ProductFactory()
+        p1.price = Decimal("9.99")
+        resp = self.client.post(BASE_URL, json=p1.serialize())
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        p2 = ProductFactory()
+        p2.price = Decimal("19.99")
+        resp = self.client.post(BASE_URL, json=p2.serialize())
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        # query by price string
+        resp = self.client.get(BASE_URL, query_string="price=9.99")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.get_json()
+        self.assertTrue(all(item["price"] == "9.99" for item in data))
+
+
 
 
 
